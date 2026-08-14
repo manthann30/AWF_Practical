@@ -1,4 +1,8 @@
 const express = require("express");
+const mongoose = require("mongoose");
+require("dotenv").config();
+
+const Task = require("./models/Task");
 
 const app = express();
 const PORT = 5000;
@@ -11,85 +15,100 @@ app.use((req, res, next) => {
     next();
 });
 
-// JSON validation middleware
+// Content-Type middleware
 app.use((req, res, next) => {
-    if ((req.method === "POST" || req.method === "PUT") &&
-        !req.is("application/json")) {
+    if (
+        (req.method === "POST" || req.method === "PUT") &&
+        !req.is("application/json")
+    ) {
         return res.status(400).json({
             error: "Content-Type must be application/json"
         });
     }
+
     next();
 });
 
-// In-memory tasks
-let tasks = [
-    { id: 1, title: "Complete React Practical", completed: false },
-    { id: 2, title: "Learn Express.js", completed: false }
-];
-
 // GET all tasks
-app.get("/tasks", (req, res) => {
-    res.status(200).json(tasks);
+app.get("/tasks", async (req, res, next) => {
+    try {
+        const tasks = await Task.find();
+        res.status(200).json(tasks);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET task by ID
+app.get("/tasks/:id", async (req, res, next) => {
+    try {
+        const task = await Task.findById(req.params.id);
+
+        if (!task) {
+            return res.status(404).json({
+                error: "Task not found"
+            });
+        }
+
+        res.status(200).json(task);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // POST create task
-app.post("/tasks", (req, res) => {
-    const { title } = req.body;
+app.post("/tasks", async (req, res, next) => {
+    try {
+        const task = await Task.create(req.body);
 
-    if (!title) {
-        return res.status(400).json({
-            error: "Title is required"
-        });
+        res.status(201).json(task);
+    } catch (err) {
+        next(err);
     }
-
-    const newTask = {
-        id: tasks.length > 0 ? tasks[tasks.length - 1].id + 1 : 1,
-        title: title,
-        completed: false
-    };
-
-    tasks.push(newTask);
-
-    res.status(201).json(newTask);
 });
 
 // PUT update task
-app.put("/tasks/:id", (req, res) => {
-    const id = parseInt(req.params.id);
-    const task = tasks.find((task) => task.id === id);
+app.put("/tasks/:id", async (req, res, next) => {
+    try {
+        const task = await Task.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
+            }
+        );
 
-    if (!task) {
-        return res.status(404).json({
-            error: "Task not found"
-        });
+        if (!task) {
+            return res.status(404).json({
+                error: "Task not found"
+            });
+        }
+
+        res.status(200).json(task);
+    } catch (err) {
+        next(err);
     }
-
-    const { title, completed } = req.body;
-
-    if (title !== undefined) task.title = title;
-    if (completed !== undefined) task.completed = completed;
-
-    res.status(200).json(task);
 });
 
 // DELETE task
-app.delete("/tasks/:id", (req, res) => {
-    const id = parseInt(req.params.id);
-    const index = tasks.findIndex((task) => task.id === id);
+app.delete("/tasks/:id", async (req, res, next) => {
+    try {
+        const task = await Task.findByIdAndDelete(req.params.id);
 
-    if (index === -1) {
-        return res.status(404).json({
-            error: "Task not found"
+        if (!task) {
+            return res.status(404).json({
+                error: "Task not found"
+            });
+        }
+
+        res.status(200).json({
+            message: "Task deleted successfully",
+            task: task
         });
+    } catch (err) {
+        next(err);
     }
-
-    const deletedTask = tasks.splice(index, 1);
-
-    res.status(200).json({
-        message: "Task deleted successfully",
-        task: deletedTask[0]
-    });
 });
 
 // 404 handler
@@ -99,15 +118,42 @@ app.use((req, res) => {
     });
 });
 
-// Global error handler - must be last
+// Global error handler
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error(err.message);
+
+    // Mongoose validation error
+    if (err.name === "ValidationError") {
+        return res.status(400).json({
+            error: "Validation failed",
+            details: Object.values(err.errors).map(
+                (error) => error.message
+            )
+        });
+    }
+
+    // Invalid MongoDB ID
+    if (err.name === "CastError") {
+        return res.status(400).json({
+            error: "Invalid task ID"
+        });
+    }
 
     res.status(500).json({
         error: "Something went wrong"
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+// Connect to MongoDB
+mongoose
+    .connect(process.env.MONGO_URI)
+    .then(() => {
+        console.log("MongoDB connected");
+
+        app.listen(PORT, () => {
+            console.log(`Server running on http://localhost:${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error("MongoDB connection failed:", err.message);
+    });
