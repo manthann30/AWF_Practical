@@ -20,6 +20,11 @@ const taskSchema = new mongoose.Schema({
         type: String,
         enum: ["low", "medium", "high"],
         default: "medium"
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
     }
 });
 

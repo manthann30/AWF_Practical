@@ -1211,3 +1211,197 @@ ul.plain li::before{
 .p6-banner-btn:hover {
     opacity: 0.9;
 }
+
+/* ==========================================================================
+   PRACTICAL 7: AUTHENTICATION & USER PROFILE STYLES
+   ========================================================================== */
+
+/* User Profile Badge & Logout */
+.user-profile-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.user-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 14px;
+    background: var(--card-bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.user-avatar-icon {
+    font-size: 16px;
+}
+
+.user-info-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.user-name {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.user-email {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.logout-btn {
+    margin: 0;
+    padding: 6px 14px;
+    font-size: var(--text-xs);
+    border-color: rgba(179, 38, 30, 0.4);
+    color: #b3261e;
+    border-radius: 999px;
+}
+
+.logout-btn::before,
+.logout-btn::after {
+    display: none;
+}
+
+.logout-btn:hover {
+    background: #b3261e;
+    color: white;
+    border-color: #b3261e;
+}
+
+.task-stats-row {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border);
+}
+
+/* Auth Card & Tabs */
+.auth-card {
+    max-width: 520px;
+    margin: var(--space-6) auto;
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-3);
+}
+
+.auth-tabs {
+    display: flex;
+    border-bottom: 1.5px solid var(--border);
+    background: var(--card-bg-raised);
+}
+
+.auth-tab {
+    flex: 1;
+    margin: 0;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.auth-tab::before,
+.auth-tab::after {
+    display: none;
+}
+
+.auth-tab:hover {
+    background: var(--card-bg);
+    color: var(--ink);
+    transform: none;
+    box-shadow: none;
+}
+
+.auth-tab.active {
+    background: var(--card-bg);
+    color: var(--accent);
+    border-bottom: 2.5px solid var(--accent);
+}
+
+.auth-body {
+    padding: var(--space-5);
+}
+
+.auth-body h3 {
+    margin-top: 0;
+    margin-bottom: var(--space-2);
+}
+
+.auth-subtitle {
+    color: var(--ink-soft);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-4);
+}
+
+.auth-error-banner {
+    background: rgba(179, 38, 30, 0.08);
+    border: 1px solid rgba(179, 38, 30, 0.3);
+    color: #b3261e;
+    padding: 10px 14px;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.auth-form {
+    margin-top: var(--space-3);
+}
+
+.auth-submit-btn {
+    margin-top: var(--space-4);
+    width: 100%;
+}
+
+.auth-toggle-footer {
+    text-align: center;
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px dashed var(--border);
+    font-size: var(--text-sm);
+    color: var(--ink-soft);
+}
+
+.text-link-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0;
+    margin: 0 0 0 var(--space-1);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    font-size: inherit;
+    font-family: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.text-link-btn::before,
+.text-link-btn::after {
+    display: none;
+}
+
+.text-link-btn:hover {
+    background: transparent;
+    color: var(--ink);
+    transform: none;
+    box-shadow: none;
+}

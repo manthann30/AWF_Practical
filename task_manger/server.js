@@ -5,12 +5,13 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 require("dotenv").config();
 
 const cors = require("cors");
-
-const Task = require("./models/Task");
+const authRoutes = require("./routes/authRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
+// Middleware Pipeline
 app.use(cors());
 app.use(express.json());
 
@@ -20,142 +21,86 @@ app.use((req, res, next) => {
     next();
 });
 
-// Content-Type middleware
+// Content-Type validation middleware for mutation requests
 app.use((req, res, next) => {
     if (
         (req.method === "POST" || req.method === "PUT") &&
         !req.is("application/json")
     ) {
         return res.status(400).json({
-            error: "Content-Type must be application/json"
+            status: 400,
+            message: "Content-Type must be application/json"
         });
     }
-
     next();
 });
 
-// GET all tasks
-app.get("/tasks", async (req, res, next) => {
-    try {
-        const tasks = await Task.find();
-        res.status(200).json(tasks);
-    } catch (err) {
-        next(err);
-    }
-});
+// Mount Routes
+// Support both direct paths (/register, /login, /me) and prefixed (/auth/register, /auth/login, /auth/me)
+app.use("/", authRoutes);
+app.use("/auth", authRoutes);
+app.use("/tasks", taskRoutes);
 
-// GET task by ID
-app.get("/tasks/:id", async (req, res, next) => {
-    try {
-        const task = await Task.findById(req.params.id);
-
-        if (!task) {
-            return res.status(404).json({
-                error: "Task not found"
-            });
-        }
-
-        res.status(200).json(task);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// POST create task
-app.post("/tasks", async (req, res, next) => {
-    try {
-        const task = await Task.create(req.body);
-
-        res.status(201).json(task);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// PUT update task
-app.put("/tasks/:id", async (req, res, next) => {
-    try {
-        const task = await Task.findByIdAndUpdate(
-            req.params.id,
-            req.body,
-            {
-                new: true,
-                runValidators: true
-            }
-        );
-
-        if (!task) {
-            return res.status(404).json({
-                error: "Task not found"
-            });
-        }
-
-        res.status(200).json(task);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// DELETE task
-app.delete("/tasks/:id", async (req, res, next) => {
-    try {
-        const task = await Task.findByIdAndDelete(req.params.id);
-
-        if (!task) {
-            return res.status(404).json({
-                error: "Task not found"
-            });
-        }
-
-        res.status(200).json({
-            message: "Task deleted successfully",
-            task: task
-        });
-    } catch (err) {
-        next(err);
-    }
-});
-
-// 404 handler
+// 404 Catch-All Handler
 app.use((req, res) => {
     res.status(404).json({
-        error: "Route not found"
+        status: 404,
+        message: "Route not found"
     });
 });
 
-// Global error handler
+// Centralized Consistent Error-Handling Middleware
 app.use((err, req, res, next) => {
-    console.error(err.message);
+    console.error(`[Error] ${err.name || "Error"}: ${err.message}`);
 
     // Mongoose validation error
     if (err.name === "ValidationError") {
         return res.status(400).json({
-            error: "Validation failed",
-            details: Object.values(err.errors).map(
-                (error) => error.message
-            )
+            status: 400,
+            message: "Validation failed",
+            errors: Object.values(err.errors).map((error) => error.message)
         });
     }
 
-    // Invalid MongoDB ID
+    // Invalid MongoDB ObjectId (CastError)
     if (err.name === "CastError") {
         return res.status(400).json({
-            error: "Invalid task ID"
+            status: 400,
+            message: "Invalid ID format"
         });
     }
 
-    res.status(500).json({
-        error: "Something went wrong"
+    // Duplicate key error (e.g. unique email)
+    if (err.code === 11000) {
+        return res.status(400).json({
+            status: 400,
+            message: "Email is already registered"
+        });
+    }
+
+    // JSON syntax error
+    if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+        return res.status(400).json({
+            status: 400,
+            message: "Malformed JSON payload"
+        });
+    }
+
+    // Generic Internal Server Error without leaking internal stack traces
+    const statusCode = err.statusCode || err.status || 500;
+    res.status(statusCode).json({
+        status: statusCode,
+        message: err.message || "Internal server error"
     });
 });
 
-// Connect to MongoDB
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/task_manager";
+// Connect to MongoDB & Start Server
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb://localhost:27017/task_manager";
+
 mongoose
     .connect(MONGO_URI)
     .then(() => {
         console.log("MongoDB connected");
-
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
         });

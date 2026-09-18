@@ -1,11 +1,26 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getTasks, createTask, updateTask, deleteTask } from "../api";
+import {
+  getTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  getToken,
+  removeToken,
+  getCurrentUser,
+  setOnUnauthorized,
+} from "../api";
 import ToastContainer from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
+import AuthForm from "../components/AuthForm";
 
 export default function Tasks() {
+  // Authentication state
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Task list state
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Form state for creating a new task
@@ -43,7 +58,7 @@ export default function Tasks() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Fetch tasks from backend
+  // Fetch tasks from backend for logged in user
   const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -58,9 +73,50 @@ export default function Tasks() {
     }
   }, [addToast]);
 
+  // Check auth session on startup
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    // Register unauthorized listener
+    setOnUnauthorized(() => {
+      setUser(null);
+      setTasks([]);
+      addToast("Session expired. Please log in again.", "error");
+    });
+
+    const initAuth = async () => {
+      const token = getToken();
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const userData = await getCurrentUser();
+        setUser(userData);
+      } catch (err) {
+        removeToken();
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
+  }, [addToast]);
+
+  // When user changes to logged in, load tasks
+  useEffect(() => {
+    if (user) {
+      fetchTasks();
+    }
+  }, [user, fetchTasks]);
+
+  // Handle Logout
+  const handleLogout = () => {
+    removeToken();
+    setUser(null);
+    setTasks([]);
+    addToast("Logged out successfully.", "info");
+  };
 
   // Handle Create Task
   const handleCreateTask = async (e) => {
@@ -94,7 +150,6 @@ export default function Tasks() {
   // Handle Toggle Complete
   const handleToggleComplete = async (task) => {
     const originalTasks = [...tasks];
-    // Optimistic UI update
     setTasks((prev) =>
       prev.map((t) =>
         t._id === task._id ? { ...t, completed: !t.completed } : t
@@ -105,7 +160,6 @@ export default function Tasks() {
       const updated = await updateTask(task._id, {
         completed: !task.completed,
       });
-      // Sync back response
       setTasks((prev) =>
         prev.map((t) => (t._id === task._id ? updated : t))
       );
@@ -116,7 +170,6 @@ export default function Tasks() {
         "success"
       );
     } catch (err) {
-      // Rollback on error
       setTasks(originalTasks);
       addToast(err.message || "Failed to update task status", "error");
     }
@@ -160,7 +213,7 @@ export default function Tasks() {
     }
   };
 
-  // Trigger Delete Confirmation Modal
+  // Prompt Delete Confirmation Modal
   const promptDelete = (task) => {
     setDeletingTask(task);
   };
@@ -204,19 +257,66 @@ export default function Tasks() {
   const completedCount = tasks.filter((t) => t.completed).length;
   const pendingCount = tasks.length - completedCount;
 
+  // Render initial auth loading state
+  if (authLoading) {
+    return (
+      <div className="tasks-page">
+        <section className="state-notice loading-notice" style={{ marginTop: "40px" }}>
+          <div className="spinner"></div>
+          <p>Verifying authentication session...</p>
+        </section>
+      </div>
+    );
+  }
+
+  // Render Login/Register form if user is not authenticated
+  if (!user) {
+    return (
+      <div className="tasks-page">
+        <ToastContainer toasts={toasts} removeToast={removeToast} />
+        <AuthForm
+          onLoginSuccess={(userData) => setUser(userData)}
+          addToast={addToast}
+        />
+      </div>
+    );
+  }
+
+  // Render Authenticated Task Manager UI (Practical 6 + Practical 7 Auth)
   return (
     <div className="tasks-page">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Practical 6 Header / Badge */}
+      {/* Practical 7 Header Card with User Badge & Logout */}
       <section className="tasks-hero-card">
         <div className="card-header-row">
           <div>
             <h2>Task Manager</h2>
             <p className="subtitle">
-              Practical 6: Full Stack Integration (React + Node.js + Express + MongoDB)
+              Practical 7: Authentication &amp; Middleware Pipeline (JWT + Express + MongoDB)
             </p>
           </div>
+
+          <div className="user-profile-actions">
+            <div className="user-badge" title={user.email}>
+              <span className="user-avatar-icon">👤</span>
+              <div className="user-info-text">
+                <span className="user-name">{user.name}</span>
+                <span className="user-email">{user.email}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="logout-btn"
+              onClick={handleLogout}
+              title="Logout from session"
+            >
+              Logout ⎋
+            </button>
+          </div>
+        </div>
+
+        <div className="task-stats-row">
           <div className="stats-badges">
             <span className="stat-pill total">Total: {tasks.length}</span>
             <span className="stat-pill active">Pending: {pendingCount}</span>
@@ -234,7 +334,7 @@ export default function Tasks() {
             <input
               id="task-title"
               type="text"
-              placeholder="e.g. Complete Practical 6 integration..."
+              placeholder="e.g. Complete Practical 7 authentication pipeline..."
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               disabled={submitting}
@@ -328,7 +428,7 @@ export default function Tasks() {
       <section className="task-list-card">
         <div className="task-list-header">
           <h3>
-            Tasks List ({filteredTasks.length}{" "}
+            My Tasks ({filteredTasks.length}{" "}
             {filteredTasks.length === 1 ? "task" : "tasks"})
           </h3>
           <button
@@ -345,7 +445,7 @@ export default function Tasks() {
         {loading && (
           <div className="state-notice loading-notice">
             <div className="spinner"></div>
-            <p>Loading tasks from MongoDB server...</p>
+            <p>Loading your tasks securely from MongoDB...</p>
           </div>
         )}
 
@@ -357,7 +457,7 @@ export default function Tasks() {
             </p>
             <p>
               Make sure the backend server is running on{" "}
-              <code>http://localhost:5000</code> and MongoDB is active.
+              <code>http://localhost:5000</code> and your session is active.
             </p>
             <button type="button" onClick={fetchTasks} className="retry-btn">
               Retry Connection
@@ -370,7 +470,7 @@ export default function Tasks() {
           <div className="state-notice empty-notice">
             <p>
               {tasks.length === 0
-                ? "No tasks found in MongoDB. Create your first task using the form above!"
+                ? "No tasks found for your account. Create your first task using the form above!"
                 : "No tasks match your search and filter criteria."}
             </p>
           </div>
