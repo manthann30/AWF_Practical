@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 function Projects() {
   const [repos, setRepos] = useState([]);
@@ -45,7 +46,12 @@ function Projects() {
 
   return (
     <section>
-      <h2>My GitHub Projects</h2>
+      <div className="p6-banner">
+        <span>🚀 <strong>Practical 6:</strong> Full Stack Task Manager (React + Express + MongoDB) is ready!</span>
+        <Link to="/tasks" className="p6-banner-btn">Go to Task Manager →</Link>
+      </div>
+
+      <h2>My GitHub Projects (Practical 3)</h2>
 
       <input
         type="text"

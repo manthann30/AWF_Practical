@@ -1,12 +1,17 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 require("dotenv").config();
+
+const cors = require("cors");
 
 const Task = require("./models/Task");
 
 const app = express();
 const PORT = 5000;
 
+app.use(cors());
 app.use(express.json());
 
 // Logging middleware
@@ -145,8 +150,9 @@ app.use((err, req, res, next) => {
 });
 
 // Connect to MongoDB
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/task_manager";
 mongoose
-    .connect(process.env.MONGO_URI)
+    .connect(MONGO_URI)
     .then(() => {
         console.log("MongoDB connected");
 
